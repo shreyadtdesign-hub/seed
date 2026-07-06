@@ -43,7 +43,12 @@ export function computeSceneState(
   const opacities = new Array<number>(sceneCount).fill(0);
   const localProgress = new Array<number>(sceneCount).fill(0);
 
-  for (let i = 0; i < sceneCount; i++) {
+  // Only current/prev/next can ever be visible or mounted (see
+  // VideoManager's window), so skip computing the rest on every tick.
+  const windowStart = Math.max(0, currentIndex - 1);
+  const windowEnd = Math.min(sceneCount - 1, currentIndex + 1);
+
+  for (let i = windowStart; i <= windowEnd; i++) {
     const start = i * segmentLength;
     const end = start + segmentLength;
 

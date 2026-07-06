@@ -46,7 +46,10 @@ export function useVideoScroll({
       end: "bottom bottom",
       pin,
       pinSpacing: false,
-      scrub: reducedMotion ? true : 0.4,
+      // Lenis already supplies scroll inertia/easing, so scrub must track
+      // it 1:1 — an eased scrub value here would double-smooth on top of
+      // Lenis' own easing, reading as laggy/rubbery instead of buttery.
+      scrub: true,
       onUpdate: (self) => {
         const state = computeSceneState(self.progress, sceneCount);
         videoManager.applyState(state);
