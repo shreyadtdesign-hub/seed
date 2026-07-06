@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { scenes, VH_PER_SCENE, LOOP_COPIES } from "@/lib/scenes";
+import { scenes, VH_PER_SCENE, LOOP_COPIES, TRANSITION_RATIOS } from "@/lib/scenes";
 import { getVideoWindow, VideoManager } from "@/lib/VideoManager";
 import { VideoPlayer } from "./VideoPlayer";
 import { useVideoScroll } from "@/hooks/useVideoScroll";
@@ -36,6 +36,7 @@ export function SceneManager({ onProgress, onFirstFrameReady, reducedMotion = fa
     videoManager,
     onProgress,
     reducedMotion,
+    transitionRatios: TRANSITION_RATIOS,
   });
 
   const { mounted } = getVideoWindow(currentIndex, scenes.length);

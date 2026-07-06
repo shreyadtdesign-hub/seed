@@ -17,6 +17,8 @@ interface UseVideoScrollOptions {
   videoManager: VideoManager;
   onProgress?: (progress: number) => void;
   reducedMotion?: boolean;
+  /** Per-boundary crossfade override — see SceneController.computeSceneState. */
+  transitionRatios?: number[];
 }
 
 /**
@@ -41,6 +43,7 @@ export function useVideoScroll({
   videoManager,
   onProgress,
   reducedMotion = false,
+  transitionRatios,
 }: UseVideoScrollOptions) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const currentIndexRef = useRef(0);
@@ -91,7 +94,7 @@ export function useVideoScroll({
         }
 
         const cycleProgress = (((rawScroll % length) + length) % length) / length;
-        const state = computeSceneState(cycleProgress, sceneCount);
+        const state = computeSceneState(cycleProgress, sceneCount, transitionRatios);
         videoManager.applyState(state);
         onProgress?.(cycleProgress);
 
@@ -103,7 +106,7 @@ export function useVideoScroll({
     });
 
     return () => trigger.kill();
-  }, [trackRef, pinRef, sceneCount, videoManager, onProgress, reducedMotion]);
+  }, [trackRef, pinRef, sceneCount, videoManager, onProgress, reducedMotion, transitionRatios]);
 
   return currentIndex;
 }

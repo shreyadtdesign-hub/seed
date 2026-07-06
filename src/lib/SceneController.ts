@@ -37,11 +37,20 @@ export const DEFAULT_TRANSITION_RATIO = 0.1;
 export function computeSceneState(
   cycleProgress: number,
   sceneCount: number,
-  transitionRatio: number = DEFAULT_TRANSITION_RATIO,
+  /**
+   * Optional per-boundary override, index-aligned with the scenes array:
+   * transitionRatios[i] is the ratio used for the cut INTO scene i (its
+   * fade-in), which is the same cut as the previous scene's fade-out — so
+   * both sides of a boundary always share one ratio. Missing entries (or
+   * omitting the array) fall back to DEFAULT_TRANSITION_RATIO. A ratio of
+   * 0 collapses that one cut to a hard cut with no blend, without
+   * affecting any other boundary.
+   */
+  transitionRatios: number[] = [],
 ): SceneState {
   const progress = ((cycleProgress % 1) + 1) % 1;
   const segmentLength = 1 / sceneCount;
-  const half = segmentLength * transitionRatio;
+  const ratioAt = (i: number) => transitionRatios[((i % sceneCount) + sceneCount) % sceneCount] ?? DEFAULT_TRANSITION_RATIO;
 
   const rawIndex = Math.floor(progress * sceneCount);
   const currentIndex = Math.min(sceneCount - 1, Math.max(0, rawIndex));
@@ -63,15 +72,24 @@ export function computeSceneState(
 
     localProgress[i] = clamp01(d / segmentLength);
 
+    // startHalf is this scene's own fade-in half-width; endHalf is the
+    // next scene's fade-in half-width, i.e. this scene's fade-out — using
+    // ratioAt(i+1) keeps both sides of that shared boundary symmetric.
+    // When a half is exactly 0, its ramp branch's interval degenerates to
+    // empty (d < x and d < x are the same test), so it's never entered —
+    // that cut becomes an instant hard step with no division-by-zero risk.
+    const startHalf = segmentLength * ratioAt(i);
+    const endHalf = segmentLength * ratioAt(i + 1);
+
     let opacity: number;
-    if (d < -half) {
+    if (d < -startHalf) {
       opacity = 0;
-    } else if (d < half) {
-      opacity = clamp01((d + half) / (2 * half));
-    } else if (d < segmentLength - half) {
+    } else if (d < startHalf) {
+      opacity = clamp01((d + startHalf) / (2 * startHalf));
+    } else if (d < segmentLength - endHalf) {
       opacity = 1;
-    } else if (d < segmentLength + half) {
-      opacity = clamp01(1 - (d - (segmentLength - half)) / (2 * half));
+    } else if (d < segmentLength + endHalf) {
+      opacity = clamp01(1 - (d - (segmentLength - endHalf)) / (2 * endHalf));
     } else {
       opacity = 0;
     }
