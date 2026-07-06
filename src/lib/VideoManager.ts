@@ -77,7 +77,13 @@ export class VideoManager {
         el.cancelVideoFrameCallback(cbId);
       }
       el.pause();
-      el.removeAttribute("src");
+      // Sources come from <source> children, not a src attribute, so
+      // removeAttribute("src") was a no-op — load() would then just
+      // re-read those children and restart decoding the exact clip
+      // we're trying to release. Assigning src directly overrides the
+      // <source> resolution and actually detaches the resource, so this
+      // decoder is freed before the next clip's is acquired.
+      el.src = "";
       el.load();
     }
     this.elements.delete(index);
