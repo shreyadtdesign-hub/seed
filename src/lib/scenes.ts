@@ -26,15 +26,17 @@ export const scenes: Scene[] = CLIP_IDS.map((id, i) => ({
 /**
  * Per-boundary crossfade ratio, index-aligned with `scenes` (see
  * SceneController.computeSceneState for exactly what index i means here).
- * Clips 09, 10 and 11 all share very similar close-up leaf/butterfly
- * framing, so crossfading between them blends two near-duplicate-but-
- * misaligned compositions into a distracting double-exposure "ghost"
- * instead of a clean dissolve — unlike every other cut, which blends
- * between visually distinct scenes. Those two cuts (into 10, and into 11)
- * use a hard cut instead, without touching the clips themselves or any
- * other transition.
+ * Three cuts blend two clips whose compositions are too similar to
+ * dissolve cleanly — the near-duplicate-but-misaligned overlap reads as a
+ * distracting double-exposure "ghost" instead, unlike every other cut,
+ * which blends between visually distinct scenes:
+ *   - into 10, and into 11: 09/10/11 all share close-up leaf/butterfly framing.
+ *   - into 02 (the loop's wraparound, from 11 back to 02): both clips
+ *     feature a near-identical spinning falling seed.
+ * Those three cuts use a hard cut instead, without touching the clips
+ * themselves or any other transition.
  */
-export const TRANSITION_RATIOS = CLIP_IDS.map((id) => (id === "10" || id === "11" ? 0 : DEFAULT_TRANSITION_RATIO));
+export const TRANSITION_RATIOS = CLIP_IDS.map((id) => (id === "02" || id === "10" || id === "11" ? 0 : DEFAULT_TRANSITION_RATIO));
 
 /** Scroll track height per scene, in viewport-height units. */
 export const VH_PER_SCENE = 220;
