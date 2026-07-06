@@ -15,16 +15,20 @@ export interface VideoWindow {
 }
 
 export function getVideoWindow(currentIndex: number, sceneCount: number): VideoWindow {
-  const mounted = new Set<number>([currentIndex]);
-  if (currentIndex > 0) mounted.add(currentIndex - 1);
-  if (currentIndex < sceneCount - 1) mounted.add(currentIndex + 1);
+  // The film loops, so neighbors wrap around (scene 0's prev is the last
+  // scene, the last scene's next is scene 0) — kept in [prev, current,
+  // next] order, not numeric order, so DOM stacking stays consistent
+  // across the wrap the same way it is at every other cut.
+  const prev = (currentIndex - 1 + sceneCount) % sceneCount;
+  const next = (currentIndex + 1) % sceneCount;
+  const mounted = [prev, currentIndex, next].filter((value, i, arr) => arr.indexOf(value) === i);
 
   const preload = new Set(mounted);
-  if (currentIndex + 2 < sceneCount) preload.add(currentIndex + 2);
+  preload.add((currentIndex + 2) % sceneCount);
 
   return {
-    mounted: [...mounted].sort((a, b) => a - b),
-    preload: [...preload].sort((a, b) => a - b),
+    mounted,
+    preload: [...preload],
   };
 }
 

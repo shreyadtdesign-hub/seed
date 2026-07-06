@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { scenes, VH_PER_SCENE } from "@/lib/scenes";
+import { scenes, VH_PER_SCENE, LOOP_COPIES } from "@/lib/scenes";
 import { getVideoWindow, VideoManager } from "@/lib/VideoManager";
 import { VideoPlayer } from "./VideoPlayer";
 import { useVideoScroll } from "@/hooks/useVideoScroll";
@@ -13,10 +13,12 @@ interface SceneManagerProps {
 }
 
 /**
- * Stitches the eleven clips into one continuous, scroll-scrubbed film. The
- * track below provides the scroll distance; the inner viewport stays
- * pinned for its entire length while SceneController + VideoManager drive
- * currentTime/opacity on whichever three clips are mounted.
+ * Stitches the clips into one continuous, scroll-scrubbed film that loops
+ * forever. The track below (LOOP_COPIES stacked copies of the full film)
+ * provides the scroll distance; the inner viewport stays pinned for its
+ * entire length while SceneController + VideoManager drive currentTime/
+ * opacity on whichever three clips are mounted, and useVideoScroll keeps
+ * the real scroll position recentered within the middle copy.
  */
 export function SceneManager({ onProgress, onFirstFrameReady, reducedMotion = false }: SceneManagerProps) {
   const trackRef = useRef<HTMLDivElement>(null);
@@ -50,7 +52,7 @@ export function SceneManager({ onProgress, onFirstFrameReady, reducedMotion = fa
   }, [videoManager]);
 
   return (
-    <div ref={trackRef} style={{ height: `${scenes.length * VH_PER_SCENE}vh` }} className="relative">
+    <div ref={trackRef} style={{ height: `${scenes.length * VH_PER_SCENE * LOOP_COPIES}vh` }} className="relative">
       <div ref={pinRef} className="relative h-screen w-full overflow-hidden bg-black">
         {mounted.map((index) => (
           <VideoPlayer
