@@ -45,9 +45,20 @@ export class VideoManager {
   private frameCallbackIds = new Map<number, number>();
   private onFirstFrameReady: FrameReadyListener | null = null;
   private readyFired = new Set<number>();
+  private abortControllers = new Map<number, AbortController>();
+  // Coalesces seeks requested while a previous one is still resolving —
+  // scrolling fast fires onUpdate far faster than the decoder can complete
+  // a seek, and setting currentTime again mid-seek makes some browsers
+  // abort/restart the in-flight one, which is exactly what reads as
+  // stutter. Instead of issuing every request immediately, only the
+  // latest target is kept and applied the moment the current seek settles.
+  private pendingSeek = new Map<number, number>();
 
   register(index: number, el: HTMLVideoElement) {
     this.elements.set(index, el);
+    const controller = new AbortController();
+    this.abortControllers.set(index, controller);
+    const { signal } = controller;
 
     const cacheDuration = () => {
       if (Number.isFinite(el.duration) && el.duration > 0) {
@@ -55,8 +66,21 @@ export class VideoManager {
       }
     };
 
-    el.addEventListener("loadedmetadata", cacheDuration);
+    el.addEventListener("loadedmetadata", cacheDuration, { signal });
     cacheDuration();
+
+    el.addEventListener(
+      "seeked",
+      () => {
+        const target = this.pendingSeek.get(index);
+        if (target === undefined) return;
+        this.pendingSeek.delete(index);
+        if (Math.abs(el.currentTime - target) > SEEK_EPSILON) {
+          this.seekTo(el, target);
+        }
+      },
+      { signal },
+    );
 
     const markReady = () => {
       if (!this.readyFired.has(index)) {
@@ -69,7 +93,7 @@ export class VideoManager {
       const id = el.requestVideoFrameCallback(markReady);
       this.frameCallbackIds.set(index, id);
     } else {
-      el.addEventListener("loadeddata", markReady, { once: true });
+      el.addEventListener("loadeddata", markReady, { once: true, signal });
     }
   }
 
@@ -80,6 +104,7 @@ export class VideoManager {
       if (cbId !== undefined && typeof el.cancelVideoFrameCallback === "function") {
         el.cancelVideoFrameCallback(cbId);
       }
+      this.abortControllers.get(index)?.abort();
       el.pause();
       // Sources come from <source> children, not a src attribute, so
       // removeAttribute("src") was a no-op — load() would then just
@@ -94,10 +119,20 @@ export class VideoManager {
     this.durations.delete(index);
     this.frameCallbackIds.delete(index);
     this.readyFired.delete(index);
+    this.abortControllers.delete(index);
+    this.pendingSeek.delete(index);
   }
 
   setOnFirstFrameReady(listener: FrameReadyListener | null) {
     this.onFirstFrameReady = listener;
+  }
+
+  private seekTo(el: HTMLVideoElement, target: number) {
+    if (typeof el.fastSeek === "function") {
+      el.fastSeek(target);
+    } else {
+      el.currentTime = target;
+    }
   }
 
   /** Applies opacity + scrubbed currentTime to every currently mounted video. */
@@ -112,10 +147,13 @@ export class VideoManager {
       const target = state.localProgress[index] * duration;
 
       if (Math.abs(el.currentTime - target) > SEEK_EPSILON) {
-        if (typeof el.fastSeek === "function") {
-          el.fastSeek(target);
+        if (el.seeking) {
+          // A seek is already resolving — remember where we actually want
+          // to land and let the "seeked" handler above apply it, rather
+          // than piling another seek on top of the one in flight.
+          this.pendingSeek.set(index, target);
         } else {
-          el.currentTime = target;
+          this.seekTo(el, target);
         }
       }
     });
